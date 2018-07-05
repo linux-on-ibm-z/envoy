@@ -4,7 +4,7 @@ set -e
 export COMMIT="e1c3a83b8197cf02e794f61228461c27d4e78cfb"  # benchmark @ Jan 11, 2018
 
 git clone https://github.com/google/benchmark.git
-(cd benchmark; git reset --hard "$COMMIT")
+(cd benchmark; git checkout v1.4.0)
 mkdir build
 
 cd build
