@@ -77,10 +77,11 @@ bool TestRootContext::onConfigure(size_t size) {
     }
     {
       // Some properties are defined in the root context.
+      const uint64_t expected_listener_direction = 1; // INBOUND
       std::vector<std::pair<std::vector<std::string>, std::string>> properties = {
           {{"plugin_name"}, "plugin_name"},
           {{"plugin_vm_id"}, "vm_id"},
-          {{"listener_direction"}, std::string("\x1\0\0\0\0\0\0\0\0", 8)}, // INBOUND
+          {{"listener_direction"}, std::string(reinterpret_cast<const char*>(&expected_listener_direction), 8)},
           {{"listener_metadata"}, ""},
           {{"xds", "node", "metadata", "istio.io/metadata"}, "sample_data"},
       };
@@ -585,14 +586,16 @@ void TestContext::onLog() {
     }
     {
       // Some properties are defined in the stream context.
+      const uint64_t expected_listener_direction = 1; // INBOUND
+      const uint64_t expected_connection_id = 4;
       std::vector<std::pair<std::vector<std::string>, std::string>> properties = {
           {{"plugin_name"}, "plugin_name"},
           {{"plugin_vm_id"}, "vm_id"},
-          {{"listener_direction"}, std::string("\x1\0\0\0\0\0\0\0\0", 8)}, // INBOUND
+          {{"listener_direction"}, std::string(reinterpret_cast<const char*>(&expected_listener_direction), 8)},
           {{"listener_metadata"}, ""},
           {{"route_name"}, "route12"},
           {{"cluster_name"}, "fake_cluster"},
-          {{"connection_id"}, std::string("\x4\0\0\0\0\0\0\0\0", 8)},
+          {{"connection_id"}, std::string(reinterpret_cast<const char*>(&expected_connection_id), 8)},
           {{"connection", "requested_server_name"}, "w3.org"},
           {{"source", "address"}, "127.0.0.1:0"},
           {{"destination", "address"}, "127.0.0.2:0"},

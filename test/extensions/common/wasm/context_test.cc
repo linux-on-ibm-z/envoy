@@ -193,13 +193,13 @@ TEST_F(ContextTest, SerializeValueMapTest) {
   CelValue value = CelValue::CreateMap(&mock_cel_map_);
   EXPECT_CALL(mock_cel_map_, ListKeys())
       .WillOnce(testing::Return(absl::UnimplementedError("CelMap::ListKeys is not implemented")));
-  EXPECT_EQ(serializeValue(value, &result), WasmResult::SerializationFailure);
+  EXPECT_EQ(serializeValue(value, &result, false), WasmResult::SerializationFailure);
 
   EXPECT_CALL(mock_cel_list_, MockIndexOperator(_))
       .WillOnce(testing::Return(CelValue::CreateNull()));
   EXPECT_CALL(mock_cel_map_, size()).WillRepeatedly(testing::Return(1));
   EXPECT_CALL(mock_cel_map_, ListKeys()).WillOnce(testing::Return(&mock_cel_list_));
-  EXPECT_EQ(serializeValue(value, &result), WasmResult::SerializationFailure);
+  EXPECT_EQ(serializeValue(value, &result, false), WasmResult::SerializationFailure);
 
   EXPECT_CALL(mock_cel_list_, MockIndexOperator(_))
       .Times(2)
@@ -207,7 +207,7 @@ TEST_F(ContextTest, SerializeValueMapTest) {
   EXPECT_CALL(mock_cel_map_, ListKeys()).WillOnce(testing::Return(&mock_cel_list_));
   EXPECT_CALL(mock_cel_map_, MockIndexOperator(_))
       .WillOnce(testing::Return(CelValue::CreateNull()));
-  EXPECT_EQ(serializeValue(value, &result), WasmResult::SerializationFailure);
+  EXPECT_EQ(serializeValue(value, &result, false), WasmResult::SerializationFailure);
 
   EXPECT_CALL(mock_cel_list_, MockIndexOperator(_))
       .Times(2)
@@ -215,7 +215,7 @@ TEST_F(ContextTest, SerializeValueMapTest) {
   EXPECT_CALL(mock_cel_map_, ListKeys()).WillOnce(testing::Return(&mock_cel_list_));
   EXPECT_CALL(mock_cel_map_, MockIndexOperator(_))
       .WillOnce(testing::Return(CelValue::CreateStringView("test")));
-  EXPECT_EQ(serializeValue(value, &result), WasmResult::Ok);
+  EXPECT_EQ(serializeValue(value, &result, false), WasmResult::Ok);
 }
 
 TEST_F(ContextTest, SerializeValueListTest) {
@@ -225,12 +225,12 @@ TEST_F(ContextTest, SerializeValueListTest) {
   EXPECT_CALL(mock_cel_list_, MockIndexOperator(_))
       .WillOnce(testing::Return(CelValue::CreateNull()));
   EXPECT_CALL(mock_cel_list_, size()).WillRepeatedly(testing::Return(1));
-  EXPECT_EQ(serializeValue(value, &result), WasmResult::SerializationFailure);
+  EXPECT_EQ(serializeValue(value, &result, false), WasmResult::SerializationFailure);
 
   EXPECT_CALL(mock_cel_list_, MockIndexOperator(_))
       .Times(1)
       .WillRepeatedly(testing::Return(CelValue::CreateStringView("test")));
-  EXPECT_EQ(serializeValue(value, &result), WasmResult::Ok);
+  EXPECT_EQ(serializeValue(value, &result, false), WasmResult::Ok);
 }
 
 TEST_F(ContextTest, FindValueTest) {

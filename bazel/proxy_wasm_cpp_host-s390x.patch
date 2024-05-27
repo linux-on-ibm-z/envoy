@@ -1,0 +1,149 @@
+diff --git a/src/exports.cc b/src/exports.cc
+index 0290dcf..90fc069 100644
+--- a/src/exports.cc
++++ b/src/exports.cc
+@@ -101,7 +101,7 @@ Word get_configuration(Word value_ptr_ptr, Word value_size_ptr) {
+ Word get_status(Word code_ptr, Word value_ptr_ptr, Word value_size_ptr) {
+   auto *context = contextOrEffectiveContext()->root_context();
+   auto status = context->getStatus();
+-  if (!context->wasm()->setDatatype(code_ptr, status.first)) {
++  if (!context->wasm()->setDatatype(code_ptr, htowasm(status.first, context->wasmVm()->usesWasmByteOrder()))) {
+     return WasmResult::InvalidMemoryAccess;
+   }
+   if (!context->wasm()->copyToPointerSize(status.second, value_ptr_ptr, value_size_ptr)) {
+@@ -239,7 +239,8 @@ Word get_shared_data(Word key_ptr, Word key_size, Word value_ptr_ptr, Word value
+   if (!context->wasm()->copyToPointerSize(data.first, value_ptr_ptr, value_size_ptr)) {
+     return WasmResult::InvalidMemoryAccess;
+   }
+-  if (!context->wasmVm()->setMemory(cas_ptr, sizeof(uint32_t), &data.second)) {
++  uint32_t cas = htowasm(data.second, context->wasmVm()->usesWasmByteOrder());
++  if (!context->wasmVm()->setMemory(cas_ptr, sizeof(uint32_t), &cas)) {
+     return WasmResult::InvalidMemoryAccess;
+   }
+   return WasmResult::Ok;
+@@ -266,7 +267,7 @@ Word register_shared_queue(Word queue_name_ptr, Word queue_name_size, Word token
+   if (result != WasmResult::Ok) {
+     return result;
+   }
+-  if (!context->wasm()->setDatatype(token_ptr, token)) {
++  if (!context->wasm()->setDatatype(token_ptr, htowasm(token, context->wasmVm()->usesWasmByteOrder()))) {
+     return WasmResult::InvalidMemoryAccess;
+   }
+   return WasmResult::Ok;
+@@ -298,7 +299,7 @@ Word resolve_shared_queue(Word vm_id_ptr, Word vm_id_size, Word queue_name_ptr,
+   if (result != WasmResult::Ok) {
+     return result;
+   }
+-  if (!context->wasm()->setDatatype(token_ptr, token)) {
++  if (!context->wasm()->setDatatype(token_ptr, htowasm(token, context->wasmVm()->usesWasmByteOrder()))) {
+     return WasmResult::InvalidMemoryAccess;
+   }
+   return WasmResult::Ok;
+@@ -486,7 +487,7 @@ Word get_buffer_status(Word type, Word length_ptr, Word flags_ptr) {
+   if (!context->wasmVm()->setWord(length_ptr, Word(length))) {
+     return WasmResult::InvalidMemoryAccess;
+   }
+-  if (!context->wasm()->setDatatype(flags_ptr, flags)) {
++  if (!context->wasm()->setDatatype(flags_ptr, htowasm(flags, context->wasmVm()->usesWasmByteOrder()))) {
+     return WasmResult::InvalidMemoryAccess;
+   }
+   return WasmResult::Ok;
+@@ -524,12 +525,12 @@ Word http_call(Word uri_ptr, Word uri_size, Word header_pairs_ptr, Word header_p
+   uint32_t token = 0;
+   // NB: try to write the token to verify the memory before starting the async
+   // operation.
+-  if (!context->wasm()->setDatatype(token_ptr, token)) {
++  if (!context->wasm()->setDatatype(token_ptr, htowasm(token, context->wasmVm()->usesWasmByteOrder()))) {
+     return WasmResult::InvalidMemoryAccess;
+   }
+   auto result =
+       context->httpCall(uri.value(), headers, body.value(), trailers, timeout_milliseconds, &token);
+-  context->wasm()->setDatatype(token_ptr, token);
++  context->wasm()->setDatatype(token_ptr, htowasm(token, context->wasmVm()->usesWasmByteOrder()));
+   return result;
+ }
+ 
+@@ -545,7 +546,7 @@ Word define_metric(Word metric_type, Word name_ptr, Word name_size, Word metric_
+   if (result != WasmResult::Ok) {
+     return result;
+   }
+-  if (!context->wasm()->setDatatype(metric_id_ptr, metric_id)) {
++  if (!context->wasm()->setDatatype(metric_id_ptr, htowasm(metric_id, context->wasmVm()->usesWasmByteOrder()))) {
+     return WasmResult::InvalidMemoryAccess;
+   }
+   return WasmResult::Ok;
+@@ -568,7 +569,7 @@ Word get_metric(Word metric_id, Word result_uint64_ptr) {
+   if (result != WasmResult::Ok) {
+     return result;
+   }
+-  if (!context->wasm()->setDatatype(result_uint64_ptr, value)) {
++  if (!context->wasm()->setDatatype(result_uint64_ptr, htowasm(value, context->wasmVm()->usesWasmByteOrder()))) {
+     return WasmResult::InvalidMemoryAccess;
+   }
+   return WasmResult::Ok;
+@@ -596,7 +597,7 @@ Word grpc_call(Word service_ptr, Word service_size, Word service_name_ptr, Word
+   if (result != WasmResult::Ok) {
+     return result;
+   }
+-  if (!context->wasm()->setDatatype(token_ptr, token)) {
++  if (!context->wasm()->setDatatype(token_ptr, htowasm(token, context->wasmVm()->usesWasmByteOrder()))) {
+     return WasmResult::InvalidMemoryAccess;
+   }
+   return WasmResult::Ok;
+@@ -621,7 +622,7 @@ Word grpc_stream(Word service_ptr, Word service_size, Word service_name_ptr, Wor
+   if (result != WasmResult::Ok) {
+     return result;
+   }
+-  if (!context->wasm()->setDatatype(token_ptr, token)) {
++  if (!context->wasm()->setDatatype(token_ptr, htowasm(token, context->wasmVm()->usesWasmByteOrder()))) {
+     return WasmResult::InvalidMemoryAccess;
+   }
+   return WasmResult::Ok;
+@@ -763,14 +764,16 @@ Word wasi_unstable_fd_fdstat_get(Word fd, Word statOut) {
+     return 8; // __WASI_EBADF;
+   }
+ 
++  auto *context = contextOrEffectiveContext();
++
+   // The last word points to a 24-byte structure, which we
+   // are mostly going to zero out.
+   uint64_t wasi_fdstat[3];
+-  wasi_fdstat[0] = 0;
+-  wasi_fdstat[1] = 64; // This sets "fs_rights_base" to __WASI_RIGHTS_FD_WRITE
+-  wasi_fdstat[2] = 0;
++  wasi_fdstat[0] = htowasm(0, context->wasmVm()->usesWasmByteOrder());
++  // This sets "fs_rights_base" to __WASI_RIGHTS_FD_WRITE
++  wasi_fdstat[1] = htowasm(64, context->wasmVm()->usesWasmByteOrder());
++  wasi_fdstat[2] = htowasm(0, context->wasmVm()->usesWasmByteOrder());
+ 
+-  auto *context = contextOrEffectiveContext();
+   context->wasmVm()->setMemory(statOut, 3 * sizeof(uint64_t), &wasi_fdstat);
+ 
+   return 0; // __WASI_ESUCCESS
+@@ -856,7 +859,7 @@ Word wasi_unstable_clock_time_get(Word clock_id, uint64_t /*precision*/,
+     // process_cputime_id and thread_cputime_id are not supported yet.
+     return 58; // __WASI_ENOTSUP
+   }
+-  if (!context->wasm()->setDatatype(result_time_uint64_ptr, result)) {
++  if (!context->wasm()->setDatatype(result_time_uint64_ptr, htowasm(result, context->wasmVm()->usesWasmByteOrder()))) {
+     return 21; // __WASI_EFAULT
+   }
+   return 0; // __WASI_ESUCCESS
+@@ -898,7 +901,7 @@ Word set_tick_period_milliseconds(Word period_milliseconds) {
+ Word get_current_time_nanoseconds(Word result_uint64_ptr) {
+   auto *context = contextOrEffectiveContext();
+   uint64_t result = context->getCurrentTimeNanoseconds();
+-  if (!context->wasm()->setDatatype(result_uint64_ptr, result)) {
++  if (!context->wasm()->setDatatype(result_uint64_ptr, htowasm(result, context->wasmVm()->usesWasmByteOrder()))) {
+     return WasmResult::InvalidMemoryAccess;
+   }
+   return WasmResult::Ok;
+@@ -919,7 +922,7 @@ Word log(Word level, Word address, Word size) {
+ Word get_log_level(Word result_level_uint32_ptr) {
+   auto *context = contextOrEffectiveContext();
+   uint32_t level = context->getLogLevel();
+-  if (!context->wasm()->setDatatype(result_level_uint32_ptr, level)) {
++  if (!context->wasm()->setDatatype(result_level_uint32_ptr, htowasm(level, context->wasmVm()->usesWasmByteOrder()))) {
+     return WasmResult::InvalidMemoryAccess;
+   }
+   return WasmResult::Ok;
